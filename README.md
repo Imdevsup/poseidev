@@ -23,7 +23,7 @@
 
 ## 🛠️ Install from GitHub (for developers)
 
-If you want to clone and build from source instead of installing from npm:
+npm install poseidev
 
 ```bash
 # 1. Clone the repo
