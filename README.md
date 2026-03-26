@@ -23,7 +23,6 @@
 
 ## 🛠️ Install from GitHub (for developers)
 
-npm install poseidev
 
 ```bash
 npm install poseidev
