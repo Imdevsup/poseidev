@@ -26,6 +26,10 @@
 npm install poseidev
 
 ```bash
+npm install poseidev
+
+OR
+
 # 1. Clone the repo
 git clone https://github.com/Imdevsup/poseidev.git
 cd poseidev/cli
