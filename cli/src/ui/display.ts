@@ -26,9 +26,9 @@ export const colors = {
   italic: chalk.italic,
 };
 
-export const poseidevGradient = gradient(['#6C63FF', '#00D2FF', '#00E676']);
-export const fireGradient = gradient(['#FF6B6B', '#FF9100', '#FFD600']);
-export const cosmicGradient = gradient(['#BB86FC', '#6C63FF', '#00D2FF']);
+export const poseidevGradient: (text: string) => string = gradient(['#6C63FF', '#00D2FF', '#00E676']) as any;
+export const fireGradient: (text: string) => string = gradient(['#FF6B6B', '#FF9100', '#FFD600']) as any;
+export const cosmicGradient: (text: string) => string = gradient(['#BB86FC', '#6C63FF', '#00D2FF']) as any;
 
 // ─────────────────────────────────────────────
 // Banner
@@ -75,7 +75,7 @@ export function displayWelcome(): void {
     `  ${colors.primary('3.')} ${chalk.white('Start building:')}`,
     `     ${colors.teal('poseidev chat')}  or  ${colors.teal('poseidev build')}`,
     '',
-    colors.muted('  Supports: NVIDIA NIM (Kimi K2.5, GLM5, Qwen 3.5) • OpenAI • Custom endpoints'),
+    colors.muted('  Supports: NVIDIA NIM (Kimi K2.5, GLM 5.1, Qwen 3.5) • DeepSeek V4 Pro • Custom endpoints'),
   ].join('\n');
 
   console.log(boxen(content, {
@@ -334,22 +334,17 @@ export function codeBlock(code: string, language: string = 'typescript'): void {
 // Confirmation Prompt Helper
 // ─────────────────────────────────────────────
 export async function confirm(message: string): Promise<boolean> {
+  const rl = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  
   return new Promise((resolve) => {
-    const msg = colors.primary(message) + colors.muted(' (Y/n) ');
-    process.stdout.write(`  ${msg}`);
-    
-    const onData = (data: Buffer) => {
-      const input = data.toString().trim().toLowerCase();
-      process.stdin.removeListener('data', onData);
-      process.stdin.pause();
-      if (process.stdin.setRawMode) process.stdin.setRawMode(false);
-      console.log(''); // newline after answer
+    rl.question(`  ${colors.primary(message)}${colors.muted(' (Y/n) ')}`, (answer: string) => {
+      rl.close();
+      const input = answer.trim().toLowerCase();
       resolve(input !== 'n' && input !== 'no');
-    };
-
-    if (process.stdin.setRawMode) process.stdin.setRawMode(false);
-    process.stdin.resume();
-    process.stdin.once('data', onData);
+    });
   });
 }
 

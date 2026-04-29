@@ -45,38 +45,26 @@ export const MODELS: Record<string, ModelConfig> = {
   },
   'meta/llama-3.3-70b-instruct': {
     id: 'meta/llama-3.3-70b-instruct',
-    name: 'GLM 5',
+    name: 'GLM 5.1',
     provider: 'NVIDIA NIM',
     apiKeyId: 'nvidia-glm5',
     baseUrl: 'https://integrate.api.nvidia.com/v1',
     maxTokens: 16384,
-    description: 'Excellent for complex reasoning and analysis',
+    description: 'Refined reasoning, sharper instruction-following, tighter code synthesis',
     strengths: ['coding', 'reasoning', 'instruction-following'],
     costPer1kTokens: 0,
     speed: 'fast',
   },
-  'gpt-4o': {
-    id: 'gpt-4o',
-    name: 'GPT-4o',
-    provider: 'OpenAI',
-    apiKeyId: 'openai',
-    baseUrl: 'https://api.openai.com/v1',
-    maxTokens: 4096,
-    description: 'OpenAI flagship multimodal model',
-    strengths: ['coding', 'reasoning', 'multimodal'],
-    costPer1kTokens: 0.005,
-    speed: 'fast',
-  },
-  'gpt-4o-mini': {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini',
-    provider: 'OpenAI',
-    apiKeyId: 'openai',
-    baseUrl: 'https://api.openai.com/v1',
-    maxTokens: 4096,
-    description: 'Fast, affordable OpenAI model',
-    strengths: ['speed', 'cost-effective'],
-    costPer1kTokens: 0.00015,
+  'deepseek-chat': {
+    id: 'deepseek-chat',
+    name: 'DeepSeek V4 Pro',
+    provider: 'DeepSeek',
+    apiKeyId: 'deepseek',
+    baseUrl: 'https://api.deepseek.com/v1',
+    maxTokens: 8192,
+    description: 'DeepSeek flagship — frontier reasoning, deep code generation, long context',
+    strengths: ['coding', 'reasoning', 'long-context'],
+    costPer1kTokens: 0.0014,
     speed: 'fast',
   },
 };
@@ -86,8 +74,7 @@ const FALLBACK_CHAIN: string[] = [
   'moonshotai/kimi-k2-instruct',
   'qwen/qwen3.5-397b-a17b',
   'meta/llama-3.3-70b-instruct',
-  'gpt-4o-mini',
-  'gpt-4o',
+  'deepseek-chat',
 ];
 
 // ─────────────────────────────────────────────
@@ -145,7 +132,7 @@ export async function callWithFallback(
     throw new Error(
       'No API keys configured! Run one of:\n' +
       '  poseidev config set-key nvidia-kimi YOUR_KEY\n' +
-      '  poseidev config set-key openai YOUR_KEY'
+      '  poseidev config set-key deepseek YOUR_KEY'
     );
   }
 

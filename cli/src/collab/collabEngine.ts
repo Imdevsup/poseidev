@@ -85,32 +85,45 @@ export async function runCollab(
 
   // ── Round 1: Architect proposes ──
   const r1 = await runRound(1, architect, prompt, [
-    { role: 'system', content: `You are the ARCHITECT in a team of 3 AI models collaborating on a task. Your job is to propose the high-level design, file structure, and technology choices. Be specific about what files to create and their purposes. Keep it concise — the Engineer and Reviewer will build on your plan next.` },
-    { role: 'user', content: `Task: ${prompt}\n\nPropose your architecture and design. The Engineer will implement it, and the Reviewer will critique it.` },
+    { role: 'system', content: `You are the ELITE SYSTEM ARCHITECT in a team of 3 world-class AI models. 
+Your job is to propose an award-winning, genius-level high-level design, file structure, and technology stack. 
+Be exceptionally specific about what files to create and their precise architectural purpose. 
+Demand absolute perfection, extreme performance, and flawless "vibe coding" aesthetics. 
+Keep it concise but profoundly brilliant — the Engineer and Reviewer rely on your foundation.` },
+    { role: 'user', content: `Task: ${prompt}\n\nPropose your architecture and design. The Engineer will implement it, and the Reviewer will critique it. Aim for absolute perfection.` },
   ]);
   conversation.push(r1);
   totalTokens += r1.tokens;
 
   // ── Round 2: Engineer builds on Architect ──
   const r2 = await runRound(2, engineer, prompt, [
-    { role: 'system', content: `You are the ENGINEER in a team of 3 AI models. The Architect has proposed a design. Your job is to build on it: add implementation specifics, identify missing pieces, suggest concrete code patterns, and propose how you'd structure the actual code. Agree, disagree, or improve on the Architect's plan.` },
-    { role: 'user', content: `Task: ${prompt}\n\n${architect.emoji} Architect's proposal:\n${r1.content}\n\nBuild on this. What would you add, change, or implement differently?` },
+    { role: 'system', content: `You are the MASTER ENGINEER in a team of 3 world-class AI models. 
+The Architect proposed a design. Your job is to build on it with genius-level implementation specifics, flawless code patterns, and aggressive optimization. 
+Identify any weak points in the Architect's plan and ruthlessly improve them. 
+Focus on extreme code quality, security, and breathtaking "vibe coding" execution.` },
+    { role: 'user', content: `Task: ${prompt}\n\n${architect.emoji} Architect's proposal:\n${r1.content}\n\nBuild on this. Elevate it to a mastercraft level. What specific patterns, libraries, or structures will you use?` },
   ]);
   conversation.push(r2);
   totalTokens += r2.tokens;
 
   // ── Round 3: Reviewer critiques both ──
   const r3 = await runRound(3, reviewer, prompt, [
-    { role: 'system', content: `You are the REVIEWER in a team of 3 AI models. The Architect proposed a design and the Engineer built on it. Your job is to find issues: security risks, missing error handling, scalability problems, edge cases, or better alternatives. Be constructive and specific.` },
-    { role: 'user', content: `Task: ${prompt}\n\n${architect.emoji} Architect said:\n${r1.content}\n\n${engineer.emoji} Engineer added:\n${r2.content}\n\nReview both. What's wrong, missing, or could be better?` },
+    { role: 'system', content: `You are the UNCOMPROMISING REVIEWER in a team of 3 world-class AI models. 
+The Architect and Engineer proposed a design. Your job is to tear it apart and demand perfection. 
+Find any security risks, lazy coding choices, scalability bottlenecks, or subpar aesthetics. 
+If it is not an international award-winning design and flawlessly optimized code, reject their choices and provide the exact corrections needed.` },
+    { role: 'user', content: `Task: ${prompt}\n\n${architect.emoji} Architect said:\n${r1.content}\n\n${engineer.emoji} Engineer added:\n${r2.content}\n\nReview this ruthlessly. What is wrong, lazy, or insecure? Demand perfection.` },
   ]);
   conversation.push(r3);
   totalTokens += r3.tokens;
 
   // ── Round 4: Architect incorporates feedback ──
   const r4 = await runRound(4, architect, prompt, [
-    { role: 'system', content: `You are the ARCHITECT. You proposed a design, the Engineer built on it, and the Reviewer found issues. Incorporate ALL feedback into a final agreed plan. List the exact files to create with brief descriptions. Be definitive — the Engineer will code this next.` },
-    { role: 'user', content: `Original task: ${prompt}\n\nYour original plan:\n${r1.content}\n\n${engineer.emoji} Engineer's additions:\n${r2.content}\n\n${reviewer.emoji} Reviewer's feedback:\n${r3.content}\n\nWrite the FINAL agreed plan incorporating all feedback. List exact files and what they contain.` },
+    { role: 'system', content: `You are the ELITE SYSTEM ARCHITECT. 
+Incorporate ALL the brilliant feedback from the Reviewer and Engineer into a final, flawless master plan. 
+List the EXACT files to create with definitive, uncompromising instructions for the Engineer. 
+The final output must represent the absolute pinnacle of software engineering and design.` },
+    { role: 'user', content: `Original task: ${prompt}\n\nYour original plan:\n${r1.content}\n\n${engineer.emoji} Engineer:\n${r2.content}\n\n${reviewer.emoji} Reviewer:\n${r3.content}\n\nWrite the flawless FINAL master plan. List exact files to be created.` },
   ]);
   conversation.push(r4);
   totalTokens += r4.tokens;
@@ -122,8 +135,19 @@ export async function runCollab(
   const condensedPlan = r4.content.length > 3000 ? r4.content.slice(0, 3000) + '\n...(plan condensed)' : r4.content;
 
   const finalMessages = [
-    { role: 'system' as const, content: `You are a code engineer. Write complete files using this exact format for EACH file:\n\n===CREATE: filepath===\nfull code here\n===END===\n\nRules:\n- Use ===CREATE: filepath=== for every file (NEVER use markdown code blocks)\n- Write complete, working code with all imports\n- No placeholders or TODOs\n- Include every file from the plan` },
-    { role: 'user' as const, content: `Write all the code files for this plan:\n\n${condensedPlan}` },
+    { role: 'system' as const, content: `You are an ELITE WORLD-CLASS CODE ENGINEER taking over execution.
+Write the complete, pristine code files using this STRICT EXACT format for EACH file:
+
+===CREATE: filepath===
+full code here
+===END===
+
+CRITICAL RULES:
+1. If you fail to use the ===CREATE: filepath=== format exactly, the system will crash. DO NOT USE MARKDOWN CODE BLOCKS for files.
+2. Write absolutely complete, working, production-ready code.
+3. NEVER use placeholders, // TODOs, or // implement later. Write every single line.
+4. Your code must be genius-level, flawlessly optimized, beautifully formatted, and visually stunning.` },
+    { role: 'user' as const, content: `EXECUTE the plan. Output EVERY file requested. Use the strict ===CREATE: filepath=== format:\n\n${condensedPlan}` },
   ];
 
   let finalContent = '';
@@ -205,22 +229,27 @@ async function runRound(
   const spinner = createSpinner(`${model.emoji} ${model.color(model.role)} (${model.name}) thinking...`);
   spinner.start();
 
-  const result = await callWithFallback(messages, {
-    preferredModel: model.id,
-    maxTokens: 4096,
-  });
+  try {
+    const result = await callWithFallback(messages, {
+      preferredModel: model.id,
+      maxTokens: 4096,
+    });
 
-  spinner.succeed(`${model.emoji} ${model.color(model.role)} ${colors.muted(`(${result.tokens} tokens)`)}`);
-  newline();
+    spinner.succeed(`${model.emoji} ${model.color(model.role)} ${colors.muted(`(${result.tokens} tokens)`)}`);
+    newline();
 
-  // Show the response
-  console.log(renderMarkdown(result.content));
-  newline();
+    // Show the response
+    console.log(renderMarkdown(result.content));
+    newline();
 
-  return {
-    role: model,
-    content: result.content,
-    round,
-    tokens: result.tokens,
-  };
+    return {
+      role: model,
+      content: result.content,
+      round,
+      tokens: result.tokens,
+    };
+  } catch (err: any) {
+    spinner.fail(`${model.emoji} ${model.color(model.role)} failed: ${err.message}`);
+    throw err;
+  }
 }

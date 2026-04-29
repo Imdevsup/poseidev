@@ -15,40 +15,60 @@ export interface FileOperation {
   newPath?: string;
 }
 
+export interface TerminalOperation {
+  type: 'terminal';
+  command: string;
+}
+
 // ─────────────────────────────────────────────
 // Parse AI response for file operations
 // ─────────────────────────────────────────────
-export function parseFileOperations(response: string): { operations: FileOperation[]; cleanResponse: string } {
+export function parseFileOperations(response: string): { operations: FileOperation[]; terminalOperations: TerminalOperation[]; cleanResponse: string } {
   const operations: FileOperation[] = [];
+  const terminalOperations: TerminalOperation[] = [];
   let cleanResponse = response;
 
-  // Pattern: ===CREATE: filepath===\n...content...\n===END===
-  const createPattern = /===CREATE:\s*(.+?)===\n([\s\S]*?)===END===/g;
+  // We use non-greedy matching `[\s\S]*?` up to `===END===`, 
+  // OR up to the NEXT `===` block start, OR the end of the file `$`.
+  // This makes the parser incredibly fault-tolerant if the AI forgets `===END===` or hallucinates.
+
+  // Pattern: ===CREATE: filepath===\n...content...
+  const createPattern = /===CREATE:\s*(.+?)===\n([\s\S]*?)(?====END===|===CREATE:|===EDIT:|===DELETE:|===RENAME:|===TERMINAL:|$)/g;
   let match;
   while ((match = createPattern.exec(response)) !== null) {
-    operations.push({ type: 'create', filepath: match[1].trim(), content: match[2].trimEnd() });
-    cleanResponse = cleanResponse.replace(match[0], `📄 Created: \`${match[1].trim()}\``);
+    let content = match[2].trimEnd();
+    // Auto-repair if the AI wrapped the entire block content in markdown backticks by mistake
+    content = content.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '');
+    operations.push({ type: 'create', filepath: match[1].trim(), content });
+    // We only replace the exact matched prefix and content, leaving the lookahead boundary intact
+    cleanResponse = cleanResponse.replace(match[0], '');
+    
+    // Explicitly remove `===END===` if it was there since it's not part of the match length due to lookahead
+    cleanResponse = cleanResponse.replace(new RegExp(`^\\n?===END===\\n?`), '');
   }
 
-  // Pattern: ===EDIT: filepath===\n...content...\n===END===
-  const editPattern = /===EDIT:\s*(.+?)===\n([\s\S]*?)===END===/g;
+  // Pattern: ===EDIT: filepath===\n...content...
+  const editPattern = /===EDIT:\s*(.+?)===\n([\s\S]*?)(?====END===|===CREATE:|===EDIT:|===DELETE:|===RENAME:|===TERMINAL:|$)/g;
   while ((match = editPattern.exec(response)) !== null) {
-    operations.push({ type: 'edit', filepath: match[1].trim(), content: match[2].trimEnd() });
-    cleanResponse = cleanResponse.replace(match[0], `✏️ Edited: \`${match[1].trim()}\``);
+    let content = match[2].trimEnd();
+    content = content.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '');
+    operations.push({ type: 'edit', filepath: match[1].trim(), content });
+    cleanResponse = cleanResponse.replace(match[0], '');
+    cleanResponse = cleanResponse.replace(new RegExp(`^\\n?===END===\\n?`), '');
   }
 
-  // Pattern: ===DELETE: filepath===\n===END===
-  const deletePattern = /===DELETE:\s*(.+?)===\s*===END===/g;
+  // Pattern: ===DELETE: filepath===
+  const deletePattern = /===DELETE:\s*(.+?)===(?:\s*===END===)?/g;
   while ((match = deletePattern.exec(response)) !== null) {
     operations.push({ type: 'delete', filepath: match[1].trim() });
-    cleanResponse = cleanResponse.replace(match[0], `🗑️ Deleted: \`${match[1].trim()}\``);
+    cleanResponse = cleanResponse.replace(match[0], '');
   }
 
-  // Pattern: ===RENAME: oldpath -> newpath===\n===END===
-  const renamePattern = /===RENAME:\s*(.+?)\s*->\s*(.+?)===\s*===END===/g;
+  // Pattern: ===RENAME: oldpath -> newpath===
+  const renamePattern = /===RENAME:\s*(.+?)\s*->\s*(.+?)===(?:\s*===END===)?/g;
   while ((match = renamePattern.exec(response)) !== null) {
     operations.push({ type: 'rename', filepath: match[1].trim(), newPath: match[2].trim() });
-    cleanResponse = cleanResponse.replace(match[0], `📝 Renamed: \`${match[1].trim()}\` → \`${match[2].trim()}\``);
+    cleanResponse = cleanResponse.replace(match[0], '');
   }
 
   // Also detect standard code blocks with file paths: ```language:filepath
@@ -59,7 +79,17 @@ export function parseFileOperations(response: string): { operations: FileOperati
     operations.push({ type: 'create', filepath: fp, content: match[2].trimEnd() });
   }
 
-  return { operations, cleanResponse };
+  // Pattern: ===TERMINAL: command===
+  const terminalPattern = /===TERMINAL:\s*([^\n]+)===(?:\n===END===)?/g;
+  while ((match = terminalPattern.exec(response)) !== null) {
+    terminalOperations.push({ type: 'terminal', command: match[1].trim() });
+    cleanResponse = cleanResponse.replace(match[0], '');
+  }
+
+  // Global cleanups for any dangling ENDs or blocks that were partially matched
+  cleanResponse = cleanResponse.replace(/===END===/g, '');
+
+  return { operations, terminalOperations, cleanResponse };
 }
 
 // ─────────────────────────────────────────────

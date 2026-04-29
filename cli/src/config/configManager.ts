@@ -10,7 +10,7 @@ export interface PoseidevConfig {
     nvidiaKimi: string;
     nvidiaGlm5: string;
     nvidiaQwen: string;
-    openai: string;
+    deepseek: string;
     anthropic: string;
     google: string;
     custom: { name: string; key: string; baseUrl: string }[];
@@ -55,7 +55,7 @@ const defaults: PoseidevConfig = {
     nvidiaKimi: '',
     nvidiaGlm5: '',
     nvidiaQwen: '',
-    openai: '',
+    deepseek: '',
     anthropic: '',
     google: '',
     custom: [],
@@ -127,7 +127,7 @@ const KEY_MAP: Record<string, string> = {
   'nvidia-kimi': 'apiKeys.nvidiaKimi',
   'nvidia-glm5': 'apiKeys.nvidiaGlm5',
   'nvidia-qwen': 'apiKeys.nvidiaQwen',
-  'openai': 'apiKeys.openai',
+  'deepseek': 'apiKeys.deepseek',
   'anthropic': 'apiKeys.anthropic',
   'google': 'apiKeys.google',
 };

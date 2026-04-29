@@ -9,7 +9,7 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🤖 **Multi-Model AI** | 5 models: Kimi K2, Qwen 3.5 397B, GLM 5, GPT-4o, GPT-4o Mini |
+| 🤖 **Multi-Model AI** | 4 models: Kimi K2, Qwen 3.5 397B, GLM 5.1, DeepSeek V4 Pro |
 | 📁 **File Operations** | AI creates, edits, deletes, and renames files directly on disk |
 | 🤝 **Model Collab** | All 3 NVIDIA models confer in rounds (Architect → Engineer → Reviewer) |
 | 🔧 **Auto-Build** | 6-phase AI pipeline: architecture → schema → backend → frontend → integration → polish |
@@ -123,7 +123,7 @@ The `/collab` command makes all 3 NVIDIA models work together in rounds:
 
   🧠 Architect     Kimi K2 Instruct
   ⚡ Engineer       Qwen 3.5 397B
-  🔍 Reviewer       GLM 5
+  🔍 Reviewer       GLM 5.1
 
   ───── Round 1 — 🧠 Architect ─────
   [Proposes design and file structure]
@@ -154,11 +154,11 @@ Poseidev supports multiple AI providers. Set keys from the terminal or inside th
 poseidev config set-key nvidia-kimi YOUR_KEY
 poseidev config set-key nvidia-glm5 YOUR_KEY
 poseidev config set-key nvidia-qwen YOUR_KEY
-poseidev config set-key openai YOUR_KEY
+poseidev config set-key deepseek YOUR_KEY
 
 # From inside the REPL
 /key nvidia-kimi YOUR_KEY
-/key openai YOUR_KEY
+/key deepseek YOUR_KEY
 ```
 
 ### Models
@@ -167,9 +167,8 @@ poseidev config set-key openai YOUR_KEY
 |-------|----------|-------------|
 | Kimi K2 Instruct | NVIDIA NIM | `nvidia-kimi` |
 | Qwen 3.5 397B | NVIDIA NIM | `nvidia-qwen` |
-| GLM 5 | NVIDIA NIM | `nvidia-glm5` |
-| GPT-4o | OpenAI | `openai` |
-| GPT-4o Mini | OpenAI | `openai` |
+| GLM 5.1 | NVIDIA NIM | `nvidia-glm5` |
+| DeepSeek V4 Pro | DeepSeek | `deepseek` |
 
 Switch models anytime:
 ```bash

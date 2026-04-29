@@ -10,6 +10,8 @@ import { ConversationStore } from './chat/conversationStore.js';
 import { getProjectContext } from './project/projectManager.js';
 import { getSystemPrompt } from './prompts/promptEnhancer.js';
 import { parseFileOperations, executeFileOperations, readFile, listFiles } from './files/fileOperations.js';
+import { execSync } from 'child_process';
+import { confirm } from './ui/display.js';
 
 interface REPLOptions {
   model?: string;
@@ -39,7 +41,8 @@ export async function startREPL(opts: REPLOptions): Promise<void> {
   console.log(`    ${colors.primary('/model')} ${colors.muted('Switch AI model')}     ${colors.primary('/key')} ${colors.muted('Manage API keys')}      ${colors.primary('/build')} ${colors.muted('Auto-build project')}`);
   console.log(`    ${colors.primary('/collab')} ${colors.muted('3-model collab')}     ${colors.primary('/read')}  ${colors.muted('View a file')}        ${colors.primary('/search')} ${colors.muted('Search files')}`);
   console.log(`    ${colors.primary('/create')} ${colors.muted('New file')}          ${colors.primary('/delete')} ${colors.muted('Remove file')}       ${colors.primary('/rename')} ${colors.muted('Rename file')}`);
-  console.log(`    ${colors.primary('/agents')} ${colors.muted('AI agents')}         ${colors.primary('/analyze')} ${colors.muted('Code analysis')}    ${colors.primary('/help')} ${colors.muted('All commands')}`);
+  console.log(`    ${colors.primary('/agents')} ${colors.muted('AI agents')}         ${colors.primary('/analyze')} ${colors.muted('Code analysis')}    ${colors.primary('/revamp')} ${colors.muted('UI/UX overhaul')}`);
+  console.log(`    ${colors.primary('/help')} ${colors.muted('All commands')}`);
   newline();
   console.log(`  ${colors.muted('Type a message to chat, or use a command above.')} ${colors.muted('Press')} ${colors.primary('Ctrl+C')} ${colors.muted('to exit.')}`);
   newline();
@@ -55,7 +58,7 @@ export async function startREPL(opts: REPLOptions): Promise<void> {
     processing = false;
     // Force-clear the line and show prompt — prevents readline corruption
     process.stdout.write('\r\x1b[K');
-    rl.prompt(true);
+    rl.prompt();
   }
 
   rl.prompt();
@@ -74,17 +77,7 @@ export async function startREPL(opts: REPLOptions): Promise<void> {
 
     processing = true;
 
-    // Safety: auto-reset processing flag after 60 seconds
-    const safetyTimer = setTimeout(() => {
-      if (processing) {
-        processing = false;
-        console.log(`\n  ${colors.warning('⚠')} Processing timeout — input unlocked.`);
-        rl.prompt();
-      }
-    }, 60000);
-
     const resetAndPrompt = () => {
-      clearTimeout(safetyTimer);
       showPrompt();
     };
 
@@ -138,7 +131,8 @@ async function handleAIMessage(
   config: ReturnType<typeof getConfig>,
   conversation: ConversationStore,
   opts: REPLOptions,
-  totalTokens: number
+  totalTokens: number,
+  autoDebugDepth: number = 0
 ): Promise<number> {
   try {
     const projectCtx = getProjectContext(opts.projectPath);
@@ -148,7 +142,8 @@ async function handleAIMessage(
     const fileTree = buildFileTree(basePath);
 
     // Pre-read all relevant files so the AI never needs to request them
-    const preReadFiles = preReadProjectFiles(message, basePath);
+    // Skip pre-reading if we are in auto-debug mode (to save tokens & focus on the error)
+    const preReadFiles = autoDebugDepth === 0 ? preReadProjectFiles(message, basePath) : '';
 
     const fileToolPrompt = `
 
@@ -175,6 +170,10 @@ To RENAME/MOVE a file:
 ===RENAME: old/path.ext -> new/path.ext===
 ===END===
 
+To RUN a terminal command (e.g. for testing, building, hosting):
+===TERMINAL: npm run build===
+===END===
+
 PROJECT STRUCTURE:
 ${fileTree}
 
@@ -184,7 +183,9 @@ RULES:
 - Use ===CREATE:=== or ===EDIT:=== blocks for ALL code output (NEVER use markdown code blocks for file content)
 - Use RELATIVE paths from the project root
 - Be proactive: if the user mentions a problem, look at the pre-loaded files above and fix them
-- Give a brief explanation before any file operation blocks
+- Give a brief explanation before any file operation or terminal block
+- Do NOT run blocking commands like dev servers without prompting the user first
+- If you run a test or command and it fails, you will automatically be fed the error back. Fix the code and run the command again.
 - When just answering questions (no file changes), respond normally in markdown`;
 
     const systemPrompt = getSystemPrompt(config.get('experienceLevel'), projectCtx) + fileToolPrompt;
@@ -227,10 +228,10 @@ RULES:
     if (fullResponse) {
       conversation.addMessage('assistant', fullResponse);
 
-      // Parse file operations from AI response
-      const { operations, cleanResponse } = parseFileOperations(fullResponse);
+      // Parse file & terminal operations from AI response
+      const { operations, terminalOperations, cleanResponse } = parseFileOperations(fullResponse);
 
-      if (operations.length > 0) {
+      if (operations.length > 0 || terminalOperations.length > 0) {
         // Show the explanation text (non-code parts only)
         const textOnly = stripCodeBlocks(cleanResponse);
         if (textOnly.trim()) {
@@ -238,7 +239,52 @@ RULES:
         }
 
         // Execute file operations with verification
-        await executeFileOperations(operations, basePath, { autoApprove: false });
+        if (operations.length > 0) {
+          await executeFileOperations(operations, basePath, { autoApprove: false });
+        }
+
+        // Execute terminal operations
+        for (const termOp of terminalOperations) {
+          newline();
+          console.log(`  ${colors.info('ℹ')} The AI wants to execute a terminal command:`);
+          const approved = await confirm(`Run command: ${colors.primary(termOp.command)} ?`);
+          if (approved) {
+            try {
+              newline();
+              execSync(termOp.command, { stdio: 'inherit', cwd: basePath });
+              console.log(`  ${colors.success('✓')} Command completed successfully.`);
+            } catch (cmdErr: any) {
+              newline();
+              const exitCode = cmdErr.status || 'unknown';
+              console.log(`  ${colors.error('✗')} Command failed with exit code ${exitCode}`);
+              
+              // Add the failure context to the conversation so AI knows it failed
+              const errorMsg = `Command \`${termOp.command}\` failed with exit code ${exitCode}:\n${cmdErr.message || String(cmdErr)}\n\nPlease analyze this error, fix the underlying code, and run the command again to verify the fix.`;
+              conversation.addMessage('system', errorMsg);
+              
+              // Auto-debug trigger
+              if (autoDebugDepth < 3) {
+                console.log(`  ${colors.warning('↻')} Auto-debugging (Attempt ${autoDebugDepth + 1}/3)...`);
+                totalTokens = await handleAIMessage(
+                  'The previous command failed. I have provided the error logs. Please fix the issue and re-run the command to test it.',
+                  config,
+                  conversation,
+                  opts,
+                  totalTokens,
+                  autoDebugDepth + 1
+                );
+                // After the recursive call finishes, we break out of this loop 
+                // to prevent running subsequent commands from the original response.
+                break;
+              } else {
+                console.log(`  ${colors.error('✗')} Auto-debug limit reached. Waiting for user input.`);
+              }
+            }
+          } else {
+            console.log(`  ${colors.warning('⚠')} Command skipped by user.`);
+          }
+        }
+
       } else {
         // No file ops — render as markdown
         console.log(renderMarkdown(fullResponse));
@@ -265,7 +311,7 @@ RULES:
  * Strip code blocks from markdown, leaving only explanatory text
  */
 function stripCodeBlocks(text: string): string {
-  let cleaned = text.replace(/===(?:CREATE|EDIT|DELETE|RENAME):[\s\S]*?===END===/g, '');
+  let cleaned = text.replace(/===(?:CREATE|EDIT|DELETE|RENAME|TERMINAL):[\s\S]*?===END===/g, '');
   cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
   return cleaned.trim();
@@ -525,7 +571,7 @@ function hasApiKeys(config: ReturnType<typeof getConfig>): boolean {
     config.get('apiKeys.nvidiaKimi') ||
     config.get('apiKeys.nvidiaGlm5') ||
     config.get('apiKeys.nvidiaQwen') ||
-    config.get('apiKeys.openai') ||
+    config.get('apiKeys.deepseek') ||
     config.get('apiKeys.custom')
   );
 }
@@ -604,7 +650,19 @@ async function handleSlashCommand(
         });
         newline();
         console.log(`  ${colors.muted('Set key:')} ${colors.primary('/key nvidia-kimi YOUR_KEY')}`);
-        console.log(`  ${colors.muted('Set key:')} ${colors.primary('/key openai YOUR_KEY')}`);
+        console.log(`  ${colors.muted('Set key:')} ${colors.primary('/key deepseek YOUR_KEY')}`);
+      }
+      break;
+    }
+
+    case 'revamp': {
+      console.log(`  ${colors.purple('✨')} Initiating explosive UI/UX Revamp...`);
+      const revampDirective = `I want to perform a massive UI/UX overhaul of this project. Analyze the entire frontend architecture and visual components. Completely rewrite them to be exceptionally well-designed—super aesthetic, sleek, modern, and minimalist, yet visually explosive. Create something breathtaking—complex yet simple, chaotic yet peaceful, perfectly symmetrical, and flawlessly aligned. Aim for international design award quality.`;
+      
+      try {
+        await handleAIMessage(revampDirective, config, conversation, opts, parseInt(config.get('maxTokens') as any) || 0);
+      } catch (e: any) {
+        console.log(`  ${colors.error('✗')} Revamp failed: ${e.message}`);
       }
       break;
     }
@@ -858,6 +916,7 @@ function showHelp(): void {
     { title: 'Tools', cmds: [
       ['/collab <task>', 'All 3 models collaborate on a task'],
       ['/build, /b', 'Start auto-build engine'],
+      ['/revamp', 'Explosive UI/UX overhaul analysis'],
       ['/agents, /a', 'Agent system info'],
       ['/project, /p', 'Show project info'],
       ['/analyze', 'Run code analysis'],
@@ -878,6 +937,6 @@ function showHelp(): void {
     });
     newline();
   }
-  console.log(`  ${colors.muted('💡 Just type naturally — the AI can create, edit, delete, and rename files for you!')}`);
+  console.log(`  ${colors.muted('💡 Just type naturally — the AI can create files, rename them, and run Terminal commands!')}`);
   newline();
 }

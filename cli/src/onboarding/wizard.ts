@@ -66,7 +66,7 @@ export async function runOnboarding(): Promise<void> {
       const { glm5Key } = await inquirer.prompt([{
         type: 'password',
         name: 'glm5Key',
-        message: colors.muted('GLM5 / Llama key (or press Enter to skip):'),
+        message: colors.muted('GLM 5.1 / Llama key (or press Enter to skip):'),
         mask: '*',
       }]);
       if (glm5Key) setApiKey('nvidia-glm5', glm5Key);

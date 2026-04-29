@@ -9,7 +9,7 @@ export function configCommand(): Command {
 
   // ── set-key ──
   cmd.command('set-key <provider> <key>')
-    .description('Set an API key (nvidia-kimi, nvidia-glm5, nvidia-qwen, openai, anthropic, google)')
+    .description('Set an API key (nvidia-kimi, nvidia-glm5, nvidia-qwen, deepseek, anthropic, google)')
     .action(async (provider: string, key: string) => {
       try {
         setApiKey(provider, key);
@@ -119,7 +119,7 @@ export function configCommand(): Command {
 
   // ── add-provider ──
   cmd.command('add-provider <name> <key> <base-url>')
-    .description('Add a custom OpenAI-compatible provider')
+    .description('Add a custom OpenAI-compatible provider (any endpoint that speaks the OpenAI chat completions API)')
     .action((name: string, key: string, baseUrl: string) => {
       addCustomProvider(name, key, baseUrl);
       console.log(`  ${colors.success('✓')} Custom provider ${colors.primary(name)} added`);
